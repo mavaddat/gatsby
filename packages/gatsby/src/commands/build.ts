@@ -1,8 +1,6 @@
 import path from "path"
 import report from "gatsby-cli/lib/reporter"
-import signalExit from "signal-exit"
 import fs from "fs-extra"
-import telemetry from "gatsby-telemetry"
 import {
   updateInternalSiteMetadata,
   isTruthy,
@@ -60,13 +58,12 @@ import {
 } from "../utils/page-ssr-module/bundle-webpack"
 import { shouldGenerateEngines } from "../utils/engines-helpers"
 import reporter from "gatsby-cli/lib/reporter"
-import type webpack from "webpack"
 import {
   materializePageMode,
   getPageMode,
   preparePageTemplateConfigs,
 } from "../utils/page-mode"
-import { validateEngines } from "../utils/validate-engines"
+import { validateEnginesWithActivity } from "../utils/validate-engines"
 import { constructConfigObject } from "../utils/gatsby-cloud-config"
 import { waitUntilWorkerJobsAreComplete } from "../utils/jobs/worker-messaging"
 import { getSSRChunkHashes } from "../utils/webpack/get-ssr-chunk-hashes"
@@ -117,13 +114,6 @@ module.exports = async function build(
   const buildActivity = report.phantomActivity(`build`)
   buildActivity.start()
 
-  telemetry.trackCli(`BUILD_START`)
-  signalExit(exitCode => {
-    telemetry.trackCli(`BUILD_END`, {
-      exitCode: exitCode as number | undefined,
-    })
-  })
-
   const buildSpan = buildActivity.span
   buildSpan.setTag(`directory`, program.directory)
 
@@ -155,7 +145,6 @@ module.exports = async function build(
   let closeJavascriptBundleCompilation: (() => Promise<void>) | undefined
   let closeHTMLBundleCompilation: (() => Promise<void>) | undefined
   let closePartialHydrationBundleCompilation: (() => Promise<void>) | undefined
-  let webpackAssets: Array<webpack.StatsAsset> | null = null
   let webpackCompilationHash: string | null = null
   let webpackSSRCompilationHash: string | null = null
   let templateCompilationHashes: Record<string, string> = {}
@@ -179,47 +168,11 @@ module.exports = async function build(
       reportWebpackWarnings(rawMessages.warnings, report)
     }
 
-    webpackAssets = stats.toJson({
-      all: false,
-      assets: true,
-      cachedAssets: true,
-    }).assets as Array<webpack.StatsAsset>
     webpackCompilationHash = stats.hash as string
   } catch (err) {
     buildActivityTimer.panic(structureWebpackErrors(Stage.BuildJavascript, err))
   } finally {
     buildActivityTimer.end()
-  }
-
-  if (shouldGenerateEngines()) {
-    const state = store.getState()
-    const buildActivityTimer = report.activityTimer(
-      `Building Rendering Engines`,
-      { parentSpan: buildSpan }
-    )
-    try {
-      buildActivityTimer.start()
-      // bundle graphql-engine
-      engineBundlingPromises.push(
-        createGraphqlEngineBundle(program.directory, report, program.verbose)
-      )
-
-      engineBundlingPromises.push(
-        createPageSSRBundle({
-          rootDir: program.directory,
-          components: state.components,
-          staticQueriesByTemplate: state.staticQueriesByTemplate,
-          webpackCompilationHash: webpackCompilationHash as string, // we set webpackCompilationHash above
-          reporter: report,
-          isVerbose: program.verbose,
-        })
-      )
-      await Promise.all(engineBundlingPromises)
-    } catch (err) {
-      reporter.panic(err)
-    } finally {
-      buildActivityTimer.end()
-    }
   }
 
   const buildSSRBundleActivityProgress = report.activityTimer(
@@ -295,20 +248,36 @@ module.exports = async function build(
   }
 
   if (shouldGenerateEngines()) {
-    const validateEnginesActivity = report.activityTimer(
-      `Validating Rendering Engines`,
-      {
-        parentSpan: buildSpan,
-      }
+    const state = store.getState()
+    const buildActivityTimer = report.activityTimer(
+      `Building Rendering Engines`,
+      { parentSpan: buildSpan }
     )
-    validateEnginesActivity.start()
     try {
-      await validateEngines(store.getState().program.directory)
-    } catch (error) {
-      validateEnginesActivity.panic({ id: `98001`, context: {}, error })
+      buildActivityTimer.start()
+      // bundle graphql-engine
+      engineBundlingPromises.push(
+        createGraphqlEngineBundle(program.directory, report, program.verbose)
+      )
+
+      engineBundlingPromises.push(
+        createPageSSRBundle({
+          rootDir: program.directory,
+          components: state.components,
+          staticQueriesByTemplate: state.staticQueriesByTemplate,
+          webpackCompilationHash: webpackCompilationHash as string, // we set webpackCompilationHash above
+          reporter: report,
+          isVerbose: program.verbose,
+        })
+      )
+      await Promise.all(engineBundlingPromises)
+    } catch (err) {
+      reporter.panic(err)
     } finally {
-      validateEnginesActivity.end()
+      buildActivityTimer.end()
     }
+
+    await validateEnginesWithActivity(program.directory, buildSpan)
   }
 
   const cacheActivity = report.activityTimer(`Caching Webpack compilations`, {
@@ -397,13 +366,6 @@ module.exports = async function build(
         SSGCount++
       }
     }
-
-    telemetry.addSiteMeasurement(`BUILD_END`, {
-      totalPagesCount: store.getState().pages.size, // total number of pages
-      SSRCount,
-      DSGCount,
-      SSGCount,
-    })
   }
 
   await copyStaticQueriesToEngine({
@@ -525,20 +487,6 @@ module.exports = async function build(
   // an equivalent static directory within public.
   copyStaticDirs()
 
-  if (telemetry.isTrackingEnabled()) {
-    // transform asset size to kB (from bytes) to fit 64 bit to numbers
-    const bundleSizes = (webpackAssets as Array<webpack.StatsAsset>)
-      .filter(asset => asset.name.endsWith(`.js`))
-      .map(asset => asset.size / 1000)
-    const pageDataSizes = [...store.getState().pageDataStats.values()]
-
-    telemetry.addSiteMeasurement(`BUILD_END`, {
-      bundleStats: telemetry.aggregateStats(bundleSizes),
-      pageDataStats: telemetry.aggregateStats(pageDataSizes),
-      queryStats: graphqlRunner.getStats(),
-    })
-  }
-
   store.dispatch(actions.setProgramStatus(`BOOTSTRAP_QUERY_RUNNING_FINISHED`))
 
   await db.saveState()
@@ -601,9 +549,6 @@ module.exports = async function build(
     }
   }
 
-  telemetry.addSiteMeasurement(`BUILD_END`, {
-    totalPagesCount: store.getState().pages.size, // total number of pages
-  })
   const postBuildActivityTimer = report.activityTimer(`onPostBuild`, {
     parentSpan: buildSpan,
   })
@@ -698,8 +643,8 @@ module.exports = async function build(
   }
 
   if (adapterManager) {
-    await adapterManager.adapt()
     await adapterManager.storeCache()
+    await adapterManager.adapt()
   }
 
   showExperimentNotices()

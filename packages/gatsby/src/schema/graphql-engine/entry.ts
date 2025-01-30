@@ -43,12 +43,34 @@ export class GraphQLEngine {
     this.getRunner()
   }
 
+  private setupPathPrefix(pathPrefix: string): void {
+    if (pathPrefix) {
+      store.dispatch({
+        type: `SET_PROGRAM`,
+        payload: {
+          prefixPaths: true,
+        },
+      })
+
+      store.dispatch({
+        type: `SET_SITE_CONFIG`,
+        payload: {
+          ...store.getState().config,
+          pathPrefix,
+        },
+      })
+    }
+  }
+
   private async _doGetRunner(): Promise<GraphQLRunner> {
     await tracerReadyPromise
 
     const wrapActivity = reporter.phantomActivity(`Initializing GraphQL Engine`)
     wrapActivity.start()
     try {
+      // @ts-ignore PATH_PREFIX is being "inlined" by bundler
+      this.setupPathPrefix(PATH_PREFIX)
+
       // @ts-ignore SCHEMA_SNAPSHOT is being "inlined" by bundler
       store.dispatch(actions.createTypes(SCHEMA_SNAPSHOT))
 
@@ -173,6 +195,9 @@ export class GraphQLEngine {
     }
   }
 
+  /**
+   * @deprecated use findEnginePageByPath exported from page-ssr module instead
+   */
   public findPageByPath(pathName: string): IGatsbyPage | undefined {
     // adapter so `findPageByPath` use SitePage nodes in datastore
     // instead of `pages` redux slice

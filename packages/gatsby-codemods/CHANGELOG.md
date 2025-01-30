@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.14.0](https://github.com/gatsbyjs/gatsby/commits/gatsby-codemods@4.14.0/packages/gatsby-codemods) (2024-11-06)
+
+[🧾 Release notes](https://www.gatsbyjs.com/docs/reference/release-notes/v5.14)
+
+#### Bug Fixes
+
+- call jscodeshift natively [#38635](https://github.com/gatsbyjs/gatsby/issues/38635) ([f129c37](https://github.com/gatsbyjs/gatsby/commit/f129c37e4540754613f403af1e54e74f674b178a))
+
+### [4.13.1](https://github.com/gatsbyjs/gatsby/commits/gatsby-codemods@4.13.1/packages/gatsby-codemods) (2024-01-23)
+
+**Note:** Version bump only for package gatsby-codemods
+
+## [4.13.0](https://github.com/gatsbyjs/gatsby/commits/gatsby-codemods@4.13.0/packages/gatsby-codemods) (2023-12-18)
+
+[🧾 Release notes](https://www.gatsbyjs.com/docs/reference/release-notes/v5.13)
+
+#### Chores
+
+- update dependency @types/jscodeshift to ^0.11.11 for gatsby-codemods [#38595](https://github.com/gatsbyjs/gatsby/issues/38595) ([7a7fa5f](https://github.com/gatsbyjs/gatsby/commit/7a7fa5f8e4f324a29d9fd48c06f3f1073fd6dbc9))
+
 ## [4.12.0](https://github.com/gatsbyjs/gatsby/commits/gatsby-codemods@4.12.0/packages/gatsby-codemods) (2023-08-24)
 
 [🧾 Release notes](https://www.gatsbyjs.com/docs/reference/release-notes/v5.12)

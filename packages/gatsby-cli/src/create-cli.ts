@@ -3,13 +3,6 @@ import resolveCwd from "resolve-cwd"
 import yargs from "yargs"
 import envinfo from "envinfo"
 import { sync as existsSync } from "fs-exists-cached"
-import clipboardy from "clipboardy"
-import {
-  trackCli,
-  setDefaultTags,
-  setTelemetryEnabled,
-  isTrackingEnabled,
-} from "gatsby-telemetry"
 import { run as runCreateGatsby } from "create-gatsby"
 import report from "./reporter"
 import { setStore } from "./reporter/redux"
@@ -274,6 +267,14 @@ function buildLocalCommands(cli: yargs.Argv, isLocalSite: boolean): void {
           default: false,
           describe: `Save the log of changed pages for future comparison.`,
           hidden: true,
+        })
+        .option(`functions-platform`, {
+          type: `string`,
+          describe: `The platform bundled functions will execute on. Defaults to current platform or settings provided by used adapter.`,
+        })
+        .option(`functions-arch`, {
+          type: `string`,
+          describe: `The architecture bundled functions will execute on. Defaults to current architecture or settings provided by used adapter.`,
         }),
     handler: handlerP(
       getCommandHandler(
@@ -357,7 +358,10 @@ function buildLocalCommands(cli: yargs.Argv, isLocalSite: boolean): void {
             console.log(envinfoOutput)
 
             if (copyToClipboard) {
-              clipboardy.writeSync(envinfoOutput)
+              // clipboardy is ESM-only package
+              import(`clipboardy`).then(({ default: clipboardy }) => {
+                clipboardy.writeSync(envinfoOutput)
+              })
             }
           })
       } catch (err) {
@@ -512,18 +516,14 @@ export const createCli = (argv: Array<string>): yargs.Arguments => {
   buildLocalCommands(cli, isLocalSite)
 
   try {
-    const { version } = require(`../package.json`)
     cli.version(
       `version`,
       `Show the version of the Gatsby CLI and the Gatsby package in the current project`,
       getVersionInfo()
     )
-    setDefaultTags({ gatsbyCliVersion: version })
   } catch (e) {
     // ignore
   }
-
-  trackCli(argv)
 
   return cli
     .command({
@@ -555,10 +555,8 @@ export const createCli = (argv: Array<string>): yargs.Arguments => {
             description: `Disable telemetry`,
           }),
 
-      handler: handlerP(({ enable, disable }: yargs.Arguments) => {
-        const enabled = Boolean(enable) || !disable
-        setTelemetryEnabled(enabled)
-        report.log(`Telemetry collection ${enabled ? `enabled` : `disabled`}`)
+      handler: handlerP(() => {
+        report.log(`Telemetry is no longer gathered and is always disabled`)
       }),
     })
     .command({
@@ -584,7 +582,6 @@ export const createCli = (argv: Array<string>): yargs.Arguments => {
 
       handler: handlerP(({ cmd, key, value }: yargs.Arguments) => {
         if (!getPackageManager()) {
-          trackCli(`SET_DEFAULT_PACKAGE_MANAGER`, { name: `npm` })
           setPackageManager(`npm`)
         }
 
@@ -597,10 +594,9 @@ export const createCli = (argv: Array<string>): yargs.Arguments => {
             if (value) {
               // @ts-ignore
               setPackageManager(value)
-              trackCli(`SET_PACKAGE_MANAGER`, { name: `${value}` })
+
               return
             } else {
-              trackCli(`SET_PACKAGE_MANAGER`, { name: `npm` })
               setPackageManager(`npm`)
             }
           } else {
@@ -613,7 +609,6 @@ export const createCli = (argv: Array<string>): yargs.Arguments => {
 
         console.log(`
         Package Manager: ${getPackageManager()}
-        Telemetry enabled: ${isTrackingEnabled()}
         `)
       }),
     })

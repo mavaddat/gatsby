@@ -10,13 +10,17 @@ const APIFunctionLoader: LoaderDefinition = async function () {
   return /* javascript */ `
   const preferDefault = m => (m && m.default) || m
 
-  const functionModule = require('${modulePath}');
+  const functionModule = require('${slash(modulePath)}');
   const functionToExecute = preferDefault(functionModule);
   const matchPath = '${matchPath}';
-  const { match: reachMatch } = require('@gatsbyjs/reach-router');
-  const { urlencoded, text, json, raw } = require('body-parser')
-  const multer = require('multer')
-  const { createConfig } = require('gatsby/dist/internal-plugins/functions/config')
+  const { match: reachMatch } = require('${slash(
+    require.resolve(`@gatsbyjs/reach-router`)
+  )}');
+  const { urlencoded, text, json, raw } = require('${slash(
+    require.resolve(`body-parser`)
+  )}')
+  const multer = require('${slash(require.resolve(`multer`))}')
+  const { createConfig } = require('${slash(require.resolve(`./config`))}')
 
   function functionWrapper(req, res) {
     if (matchPath) {

@@ -1,5 +1,4 @@
 // @ts-check
-import isOnline from "is-online"
 import _ from "lodash"
 import {
   addNodeToExistingNodesCache,
@@ -35,6 +34,10 @@ const restrictedNodeFields = [
 ]
 
 const CONTENT_DIGEST_COUNTER_SEPARATOR = `_COUNT_`
+
+async function isOnline() {
+  return (await import(`is-online`)).default()
+}
 
 /***
  * Localization algorithm
@@ -463,13 +466,13 @@ export async function sourceNodes(
 
         // memory cached nodes are mutated during back reference checks
         // so we need to carry over the changes to the updated node
-        if (node.__memcache) {
-          for (const key of Object.keys(node)) {
+        if (nodeToUpdateOriginal.__memcache) {
+          for (const key of Object.keys(nodeToUpdateOriginal)) {
             if (!key.endsWith(`___NODE`)) {
               continue
             }
 
-            newNode[key] = node[key]
+            newNode[key] = nodeToUpdateOriginal[key]
           }
         }
 

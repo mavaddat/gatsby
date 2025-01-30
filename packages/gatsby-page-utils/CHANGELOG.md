@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.14.0](https://github.com/gatsbyjs/gatsby/commits/gatsby-page-utils@3.14.0/packages/gatsby-page-utils) (2024-11-06)
+
+[🧾 Release notes](https://www.gatsbyjs.com/docs/reference/release-notes/v5.14)
+
+#### Chores
+
+- update [dev] minor and patch dependencies for gatsby-page-utils [#38593](https://github.com/gatsbyjs/gatsby/issues/38593) ([e8efe88](https://github.com/gatsbyjs/gatsby/commit/e8efe8849f8b882fef6fc2f06439c04db2352f0b))
+
+### [3.13.1](https://github.com/gatsbyjs/gatsby/commits/gatsby-page-utils@3.13.1/packages/gatsby-page-utils) (2024-01-23)
+
+**Note:** Version bump only for package gatsby-page-utils
+
+## [3.13.0](https://github.com/gatsbyjs/gatsby/commits/gatsby-page-utils@3.13.0/packages/gatsby-page-utils) (2023-12-18)
+
+[🧾 Release notes](https://www.gatsbyjs.com/docs/reference/release-notes/v5.13)
+
+**Note:** Version bump only for package gatsby-page-utils
+
+### [3.12.1](https://github.com/gatsbyjs/gatsby/commits/gatsby-page-utils@3.12.1/packages/gatsby-page-utils) (2023-10-26)
+
+**Note:** Version bump only for package gatsby-page-utils
+
 ## [3.12.0](https://github.com/gatsbyjs/gatsby/commits/gatsby-page-utils@3.12.0/packages/gatsby-page-utils) (2023-08-24)
 
 [🧾 Release notes](https://www.gatsbyjs.com/docs/reference/release-notes/v5.12)

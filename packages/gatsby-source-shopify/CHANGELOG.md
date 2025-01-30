@@ -3,6 +3,58 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [9.0.0](https://github.com/gatsbyjs/gatsby/commits/gatsby-source-shopify@9.0.0/packages/gatsby-source-shopify) (2025-01-02)
+
+#### Other Changes
+
+- feat!(gatsby-source-shopify): upgrade from Shopify API version 2022-04 to 2024-04 [#39082](https://github.com/gatsbyjs/gatsby/issues/39082) [#39202](https://github.com/gatsbyjs/gatsby/issues/39202) ([a316ba0](https://github.com/gatsbyjs/gatsby/commit/a316ba08f1d58969e6246c07a1d339e8a98793e8))
+
+### [8.14.1](https://github.com/gatsbyjs/gatsby/commits/gatsby-source-shopify@8.14.1/packages/gatsby-source-shopify) (2024-12-13)
+
+#### Features
+
+- update to ESM compatible version of CTF library [#39178](https://github.com/gatsbyjs/gatsby/issues/39178) [#39185](https://github.com/gatsbyjs/gatsby/issues/39185) [#39182](https://github.com/gatsbyjs/gatsby/issues/39182) ([dcfadbe](https://github.com/gatsbyjs/gatsby/commit/dcfadbea623be77cae37a2a3dd66955e0dbed67b))
+
+## [8.14.0](https://github.com/gatsbyjs/gatsby/commits/gatsby-source-shopify@8.14.0/packages/gatsby-source-shopify) (2024-11-06)
+
+[🧾 Release notes](https://www.gatsbyjs.com/docs/reference/release-notes/v5.14)
+
+#### Performance Improvements
+
+- don't load all shopify nodes into memory at once and avoid creating many temp objects [#39138](https://github.com/gatsbyjs/gatsby/issues/39138) ([41d8aef](https://github.com/gatsbyjs/gatsby/commit/41d8aef435e86b3130a0a0f82c669895ad866690))
+
+### [8.13.2](https://github.com/gatsbyjs/gatsby/commits/gatsby-source-shopify@8.13.2/packages/gatsby-source-shopify) (2024-10-25)
+
+#### Performance Improvements
+
+- don't load all shopify nodes into memory at once and avoid creating many temp objects [#39138](https://github.com/gatsbyjs/gatsby/issues/39138) [#39144](https://github.com/gatsbyjs/gatsby/issues/39144) ([a550342](https://github.com/gatsbyjs/gatsby/commit/a550342857845cc8be88756a7ff9d81849b17396))
+
+### [8.13.1](https://github.com/gatsbyjs/gatsby/commits/gatsby-source-shopify@8.13.1/packages/gatsby-source-shopify) (2024-01-23)
+
+**Note:** Version bump only for package gatsby-source-shopify
+
+## [8.13.0](https://github.com/gatsbyjs/gatsby/commits/gatsby-source-shopify@8.13.0/packages/gatsby-source-shopify) (2023-12-18)
+
+[🧾 Release notes](https://www.gatsbyjs.com/docs/reference/release-notes/v5.13)
+
+#### Chores
+
+- upgrade sharp to latest v0.32.6 [#38374](https://github.com/gatsbyjs/gatsby/issues/38374) ([ca15ef3](https://github.com/gatsbyjs/gatsby/commit/ca15ef37be3febbacfb830193556048008b2fd58))
+
+### [8.12.3](https://github.com/gatsbyjs/gatsby/commits/gatsby-source-shopify@8.12.3/packages/gatsby-source-shopify) (2023-10-26)
+
+**Note:** Version bump only for package gatsby-source-shopify
+
+### [8.12.2](https://github.com/gatsbyjs/gatsby/commits/gatsby-source-shopify@8.12.2/packages/gatsby-source-shopify) (2023-10-20)
+
+**Note:** Version bump only for package gatsby-source-shopify
+
+### [8.12.1](https://github.com/gatsbyjs/gatsby/commits/gatsby-source-shopify@8.12.1/packages/gatsby-source-shopify) (2023-10-09)
+
+#### Chores
+
+- upgrade sharp to latest v0.32.6 [#38374](https://github.com/gatsbyjs/gatsby/issues/38374) [#38617](https://github.com/gatsbyjs/gatsby/issues/38617) ([f1a4107](https://github.com/gatsbyjs/gatsby/commit/f1a41079fa1d25cd20139cfb15add6fe081ec3ee))
+
 ## [8.12.0](https://github.com/gatsbyjs/gatsby/commits/gatsby-source-shopify@8.12.0/packages/gatsby-source-shopify) (2023-08-24)
 
 [🧾 Release notes](https://www.gatsbyjs.com/docs/reference/release-notes/v5.12)

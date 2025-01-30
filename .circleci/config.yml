@@ -15,6 +15,7 @@ executors:
     environment:
       GATSBY_CPU_COUNT: 2
       COMPILER_OPTIONS: GATSBY_MAJOR=<< parameters.gatsby_major >>
+      NODE_NO_WARNINGS: 1
 
 aliases:
   e2e-executor-env: &e2e-executor-env
@@ -133,6 +134,9 @@ commands:
       slices:
         type: boolean
         default: true # allow disabling it later when setting up partial hydration tests
+      pre_gatsby_dev_command:
+        type: string
+        default: ""
     steps:
       - checkout
       # In case of failure, add these steps again. Cache probably got deleted
@@ -163,7 +167,7 @@ commands:
           command: yarn global add gatsby-dev-cli@next --ignore-engines
       - run:
           name: Run tests (using defaults)
-          command: ./scripts/e2e-test.sh "<< parameters.test_path >>" "<< parameters.test_command >>"
+          command: ./scripts/e2e-test.sh "<< parameters.test_path >>" "<< parameters.test_command >>" "<< parameters.pre_gatsby_dev_command >>"
 
 version: 2.1
 
@@ -313,6 +317,13 @@ jobs:
           test_path: integration-tests/esm-in-gatsby-files
           test_command: yarn test
 
+  integration_tests_lmdb_regeneration:
+    executor: node
+    steps:
+      - e2e-test:
+          test_path: integration-tests/lmdb-regeneration
+          test_command: yarn test
+
   e2e_tests_path-prefix:
     <<: *e2e-executor
     steps:
@@ -321,7 +332,9 @@ jobs:
           test_path: e2e-tests/path-prefix
 
   e2e_tests_pnp:
-    executor: node
+    executor:
+      name: node
+      image: "18.12.0"
     steps:
       - checkout
       - run: ./scripts/assert-changed-files.sh "packages/*|.circleci/*"
@@ -331,6 +344,9 @@ jobs:
           working_directory: ~/project
       - run:
           command: cp -r ./starters/default /tmp/e2e-tests/gatsby-pnp
+          working_directory: ~/project
+      - run: # default doesn't have API functions so let's get some of those
+          command: cp -r ./e2e-tests/adapters/src/api /tmp/e2e-tests/gatsby-pnp/src/api
           working_directory: ~/project
       - run:
           command: touch yarn.lock
@@ -369,6 +385,45 @@ jobs:
       - run:
           command: 'DEBUG=start-server-and-test yarn start-server-and-test "yarn develop 2>&1 | tee log.txt" :8000 "! cat log.txt | grep -E ''ERROR #|Require stack:''"'
           working_directory: /tmp/e2e-tests/gatsby-pnp
+
+  e2e_tests_pnpm:
+    executor:
+      name: node
+      image: "18.12.0"
+    steps:
+      - checkout
+      - run: ./scripts/assert-changed-files.sh "packages/*|.circleci/*"
+      - <<: *attach_to_bootstrap
+      - run:
+          command: mkdir -p /tmp/e2e-tests/
+          working_directory: ~/project
+      - run:
+          command: cp -r ./starters/default /tmp/e2e-tests/gatsby-pnpm
+          working_directory: ~/project
+      - run: # default doesn't have API functions so let's get some of those
+          command: cp -r ./e2e-tests/adapters/src/api /tmp/e2e-tests/gatsby-pnpm/src/api
+          working_directory: ~/project
+      - run:
+          command: rm package-lock.json
+          working_directory: /tmp/e2e-tests/gatsby-pnpm
+      - run: # Install pnpm
+          command: npm install -g pnpm
+          working_directory: /tmp/e2e-tests/gatsby-pnpm
+      - run: # Install start-server-and-test
+          command: npm install -g start-server-and-test@^1.11.0
+          working_directory: /tmp/e2e-tests/gatsby-pnpm
+      - run: # Set project dir
+          command: node ~/project/packages/gatsby-dev-cli/dist/index.js --set-path-to-repo ~/project
+          working_directory: /tmp/e2e-tests/gatsby-pnpm
+      - run: # Copy over packages
+          command: node ~/project/packages/gatsby-dev-cli/dist/index.js --force-install --scan-once --package-manager pnpm
+          working_directory: /tmp/e2e-tests/gatsby-pnpm
+      - run:
+          command: pnpm build
+          working_directory: /tmp/e2e-tests/gatsby-pnpm
+      - run:
+          command: 'DEBUG=start-server-and-test pnpm start-server-and-test "pnpm develop 2>&1 | tee log.txt" :8000 "! cat log.txt | grep -E ''ERROR #|Require stack:''"'
+          working_directory: /tmp/e2e-tests/gatsby-pnpm
 
   e2e_tests_development_runtime_with_react_18:
     <<: *e2e-executor
@@ -446,10 +501,25 @@ jobs:
 
   e2e_tests_adapters:
     <<: *e2e-executor
+    docker:
+      - image: cypress/browsers:node-18.20.3-chrome-125.0.6422.141-1-ff-126.0.1-edge-125.0.2535.85-1
     steps:
       - run: echo 'export CYPRESS_RECORD_KEY="${CY_CLOUD_ADAPTERS}"' >> "$BASH_ENV"
       - e2e-test:
           test_path: e2e-tests/adapters
+      - store_test_results:
+          path: e2e-tests/adapters/cypress/results
+
+  e2e_tests_adapters_monorepo:
+    <<: *e2e-executor
+    docker:
+      - image: cypress/browsers:node-18.20.3-chrome-125.0.6422.141-1-ff-126.0.1-edge-125.0.2535.85-1
+    steps:
+      - run: echo 'export CYPRESS_RECORD_KEY="${CY_CLOUD_ADAPTERS}"' >> "$BASH_ENV"
+      - e2e-test:
+          test_path: e2e-tests/adapters
+          test_command: cd workspace; gatsby-dev --force-install --scan-once; cd ..; yarn test
+          pre_gatsby_dev_command: ./make-monorepo.sh
       - store_test_results:
           path: e2e-tests/adapters/cypress/results
 
@@ -507,7 +577,7 @@ jobs:
             nvm install 18.0.0
             nvm alias default 18.0.0
             nvm use 18.0.0
-            choco install yarn
+            choco install yarn -y
       - run:
           name: Rebuild packages for windows
           command: |
@@ -526,6 +596,43 @@ jobs:
             JEST_JUNIT_REPORT_TEST_SUITE_ERRORS: "true"
       - store_test_results:
           path: ./test-results/jest-node/
+
+  windows_adapters_smoke:
+    executor:
+      name: win/default
+      shell: bash.exe
+    steps:
+      - checkout
+      - run:
+          command: ./scripts/assert-changed-files.sh "packages/*|(e2e|integration)-tests/*|.circleci/*|scripts/e2e-test.sh|yarn.lock"
+      - <<: *attach_to_bootstrap
+      - run:
+          name: Install node 18.19.0, yarn and netlify-cli
+          command: |
+            nvm install 18.19.0
+            nvm alias default 18.19.0
+            nvm use 18.19.0
+            npm install -g yarn netlify-cli
+      - run:
+          name: Clear out sharp
+          command: |
+            Remove-Item -Recurse -Force -Path "node_modules/sharp/"
+          shell: powershell.exe
+      - run:
+          command: yarn
+      - run:
+          command: mkdir -p /tmp/e2e-tests/
+      - run:
+          command: cp -r ./e2e-tests/adapters /tmp/e2e-tests/adapters
+      - run:
+          command: pwd && ls
+          working_directory: /tmp/e2e-tests/adapters
+      - run: # Set project dir
+          command: node ./packages/gatsby-dev-cli/dist/index.js --set-path-to-repo .
+      - run: # Copy over packages
+          command: cd /tmp/e2e-tests/adapters && node ~/project/packages/gatsby-dev-cli/dist/index.js --force-install --scan-once
+      - run: # run smoke test
+          command: cd /tmp/e2e-tests/adapters && node scripts/deploy-and-run/netlify.mjs test:smoke
 
 workflows:
   version: 2
@@ -558,6 +665,14 @@ workflows:
           requires:
             - lint
             - bootstrap
+      - windows_adapters_smoke:
+          requires:
+            # ideally we wait for windows unit tests here, but because those are flaky
+            # feedback loop would be not practical, so at least wait for linux unit tests
+            # to resemble setup for more robust E2E tests
+            - lint
+            - bootstrap
+            - unit_tests_node18
       - unit_tests_node18:
           <<: *ignore_docs
           requires:
@@ -588,10 +703,14 @@ workflows:
           <<: *e2e-test-workflow
       - integration_tests_esm_in_gatsby_files:
           <<: *e2e-test-workflow
+      - integration_tests_lmdb_regeneration:
+          <<: *e2e-test-workflow
       - integration_tests_gatsby_cli:
           requires:
             - bootstrap
       - e2e_tests_pnp:
+          <<: *e2e-test-workflow
+      - e2e_tests_pnpm:
           <<: *e2e-test-workflow
       - e2e_tests_path-prefix:
           <<: *e2e-test-workflow
@@ -604,6 +723,8 @@ workflows:
       - e2e_tests_trailing-slash:
           <<: *e2e-test-workflow
       - e2e_tests_adapters:
+          <<: *e2e-test-workflow
+      - e2e_tests_adapters_monorepo:
           <<: *e2e-test-workflow
       - e2e_tests_development_runtime_with_react_18:
           <<: *e2e-test-workflow

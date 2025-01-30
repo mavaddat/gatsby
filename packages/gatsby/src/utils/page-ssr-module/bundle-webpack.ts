@@ -4,7 +4,7 @@ import webpack from "webpack"
 import mod from "module"
 import { WebpackLoggingPlugin } from "../../utils/webpack/plugins/webpack-logging"
 import reporter from "gatsby-cli/lib/reporter"
-import type { ITemplateDetails } from "./entry"
+import type { EnginePage, ITemplateDetails } from "./entry"
 
 import {
   getScriptsAndStylesForTemplate,
@@ -12,7 +12,8 @@ import {
 } from "../client-assets-for-template"
 import { IGatsbyState } from "../../redux/types"
 import { store } from "../../redux"
-import { LmdbOnCdnPath, shouldBundleDatastore } from "../engines-helpers"
+import { getLmdbOnCdnPath, shouldBundleDatastore } from "../engines-helpers"
+import { getPageMode } from "../page-mode"
 
 type Reporter = typeof reporter
 
@@ -77,6 +78,9 @@ export async function createPageSSRBundle({
   isVerbose?: boolean
 }): Promise<webpack.Compilation | undefined> {
   const state = store.getState()
+  const pathPrefix = state.program.prefixPaths
+    ? state.config.pathPrefix ?? ``
+    : ``
   const slicesStateObject = {}
   for (const [key, value] of state.slices) {
     slicesStateObject[key] = value
@@ -106,6 +110,25 @@ export async function createPageSSRBundle({
         pageTemplate.componentChunkName,
         webpackStats
       ),
+    }
+  }
+
+  const pagesIterable: Array<[string, EnginePage]> = []
+  for (const [pagePath, page] of state.pages) {
+    const mode = getPageMode(page, state)
+    if (mode !== `SSG`) {
+      pagesIterable.push([
+        pagePath,
+        {
+          componentChunkName: page.componentChunkName,
+          componentPath: page.componentPath,
+          context: page.context,
+          matchPath: page.matchPath,
+          mode,
+          path: page.path,
+          slices: page.slices,
+        },
+      ])
     }
   }
 
@@ -190,6 +213,7 @@ export async function createPageSSRBundle({
         INLINED_TEMPLATE_TO_DETAILS: JSON.stringify(toInline),
         INLINED_HEADERS_CONFIG: JSON.stringify(state.config.headers),
         WEBPACK_COMPILATION_HASH: JSON.stringify(webpackCompilationHash),
+        GATSBY_PAGES: JSON.stringify(pagesIterable),
         GATSBY_SLICES: JSON.stringify(slicesStateObject),
         GATSBY_SLICES_BY_TEMPLATE: JSON.stringify(slicesByTemplateStateObject),
         GATSBY_SLICES_SCRIPT: JSON.stringify(
@@ -206,6 +230,7 @@ export async function createPageSSRBundle({
               )
             : ``
         ),
+        PATH_PREFIX: JSON.stringify(pathPrefix),
         // eslint-disable-next-line @typescript-eslint/naming-convention
         "process.env.GATSBY_LOGGER": JSON.stringify(`yurnalist`),
         // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -219,17 +244,47 @@ export async function createPageSSRBundle({
     ].filter(Boolean) as Array<webpack.WebpackPluginInstance>,
   })
 
+  let IMAGE_CDN_URL_GENERATOR_MODULE_RELATIVE_PATH = ``
+  if (global.__GATSBY?.imageCDNUrlGeneratorModulePath) {
+    await fs.copyFile(
+      global.__GATSBY.imageCDNUrlGeneratorModulePath,
+      path.join(outputDir, `image-cdn-url-generator.js`)
+    )
+    IMAGE_CDN_URL_GENERATOR_MODULE_RELATIVE_PATH = `./image-cdn-url-generator.js`
+  }
+
+  let FILE_CDN_URL_GENERATOR_MODULE_RELATIVE_PATH = ``
+  if (global.__GATSBY?.fileCDNUrlGeneratorModulePath) {
+    await fs.copyFile(
+      global.__GATSBY.fileCDNUrlGeneratorModulePath,
+      path.join(outputDir, `file-cdn-url-generator.js`)
+    )
+    FILE_CDN_URL_GENERATOR_MODULE_RELATIVE_PATH = `./file-cdn-url-generator.js`
+  }
+
   let functionCode = await fs.readFile(
     path.join(__dirname, `lambda.js`),
     `utf-8`
   )
 
-  functionCode = functionCode.replace(
-    `%CDN_DATASTORE_PATH%`,
-    shouldBundleDatastore()
-      ? ``
-      : `${state.adapter.config.deployURL ?? ``}/${LmdbOnCdnPath}`
-  )
+  functionCode = functionCode
+    .replaceAll(
+      `%CDN_DATASTORE_PATH%`,
+      shouldBundleDatastore() ? `` : getLmdbOnCdnPath()
+    )
+    .replaceAll(
+      `%CDN_DATASTORE_ORIGIN%`,
+      shouldBundleDatastore() ? `` : state.adapter.config.deployURL ?? ``
+    )
+    .replaceAll(`%PATH_PREFIX%`, pathPrefix)
+    .replaceAll(
+      `%IMAGE_CDN_URL_GENERATOR_MODULE_RELATIVE_PATH%`,
+      IMAGE_CDN_URL_GENERATOR_MODULE_RELATIVE_PATH
+    )
+    .replaceAll(
+      `%FILE_CDN_URL_GENERATOR_MODULE_RELATIVE_PATH%`,
+      FILE_CDN_URL_GENERATOR_MODULE_RELATIVE_PATH
+    )
 
   await fs.outputFile(path.join(outputDir, `lambda.js`), functionCode)
 
